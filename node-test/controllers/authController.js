@@ -1,6 +1,7 @@
 const { User } = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const sendEmail = require("../utils/sendEmail");
 
 /**
  * @description signup user
@@ -9,23 +10,42 @@ const jwt = require("jsonwebtoken");
  * @access public
  */
 const signupCtrl = async (req, res) => {
-  const { name, email, password } = req.body;
+  try {
+    const { name, email, password } = req.body;
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-  const userIsFound = await User.findOne({ email });
-  if (userIsFound) {
-    return res.status(400).json({ message: "user already exist" });
+    const userIsFound = await User.findOne({ email });
+    if (userIsFound) {
+      return res.status(400).json({ message: "user already exist" });
+    }
+
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+    });
+
+    // send email
+    const token = jwt.sign({ id: newUser._id }, process.env.SECRET_KEY);
+    const link = `http://localhost:5173/account/activate/${token}`;
+    console.log("1");
+    await sendEmail(
+      newUser.email,
+      link,
+      newUser.name,
+      "verify your email",
+      "verifyemail"
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "success, check your email and activate your account",
+    });
+  } catch (error) {
+    console.log(error);
   }
-
-  const newUser = await User.create({
-    name,
-    email,
-    password: hashedPassword,
-  });
-
-  res.status(201).json({ message: "success", user: newUser });
 };
 
 /**
@@ -57,7 +77,39 @@ const loginCtrl = async (req, res) => {
   }
 };
 
+/**
+ * @description verify email
+ * @route /auth/verify-email
+ * @method POST
+ * @access public
+ */
+const verifyEmailCtrl = async (req, res) => {
+  try {
+    const token = req.body.token;
+    const decode = jwt.verify(token, process.env.SECRET_KEY);
+    const user = await User.findById(decode.id);
+    if (!user) {
+      return res.status(400).json({ message: "user not found" });
+    }
+    const updatedUser = await User.findByIdAndUpdate(
+      decode.id,
+      {
+        isActivated: true,
+      },
+      { new: true }
+    );
+
+    res
+      .status(200)
+      .json({ message: "user activated successfully", updatedUser });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ error });
+  }
+};
+
 module.exports = {
   signupCtrl,
   loginCtrl,
+  verifyEmailCtrl,
 };

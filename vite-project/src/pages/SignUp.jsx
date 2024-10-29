@@ -1,6 +1,7 @@
 import axios from "axios";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 export default function SignUp() {
   const [name, setName] = useState("");
@@ -14,7 +15,8 @@ export default function SignUp() {
       email,
       password,
     });
-    if (data.message === "success") {
+    if (data.success === true) {
+      toast.success(data.message);
       navigate("/login");
     }
   };
