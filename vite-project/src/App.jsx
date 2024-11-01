@@ -9,6 +9,8 @@ import Note from "./pages/Note";
 import UpdateNote from "./pages/UpdateNote";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import AccountActivated from "./pages/AccountActivated";
+import ActivateAccount from "./pages/ActivateAccount";
 
 export const UserContext = createContext(
   JSON.parse(localStorage.getItem("user"))
@@ -30,15 +32,34 @@ function App() {
             path="/login"
             element={user ? <Navigate to={"/dashboard"} /> : <Login />}
           />
+
           <Route
             path="/"
             element={
-              user ? <Navigate to={"/dashboard"} /> : <Navigate to={"/login"} />
+              user ? (
+                user.isActivated ? (
+                  <Navigate to={"/dashboard"} />
+                ) : (
+                  <ActivateAccount />
+                )
+              ) : (
+                <Navigate to={"/login"} />
+              )
             }
           />
           <Route
             path="/dashboard"
-            element={user ? <Dashboard /> : <Navigate to={"/login"} />}
+            element={
+              user ? (
+                user.isActivated ? (
+                  <Dashboard />
+                ) : (
+                  <ActivateAccount />
+                )
+              ) : (
+                <Navigate to={"/login"} />
+              )
+            }
           />
           <Route
             path="/add-note"
@@ -47,6 +68,12 @@ function App() {
 
           <Route path="/notes/:id" element={<Note />} />
           <Route path="/notes/:id/edit" element={<UpdateNote />} />
+
+          <Route
+            path="/account/activate/:token"
+            element={<AccountActivated />}
+          />
+          <Route path="/activate-account" element={<ActivateAccount />} />
         </Routes>
       </UserContext.Provider>
     </>

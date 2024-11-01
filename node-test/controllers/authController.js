@@ -2,6 +2,7 @@ const { User } = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
+const { models } = require("mongoose");
 
 /**
  * @description signup user
@@ -30,7 +31,6 @@ const signupCtrl = async (req, res) => {
     // send email
     const token = jwt.sign({ id: newUser._id }, process.env.SECRET_KEY);
     const link = `http://localhost:5173/account/activate/${token}`;
-    console.log("1");
     await sendEmail(
       newUser.email,
       link,
@@ -86,30 +86,67 @@ const loginCtrl = async (req, res) => {
 const verifyEmailCtrl = async (req, res) => {
   try {
     const token = req.body.token;
-    const decode = jwt.verify(token, process.env.SECRET_KEY);
-    const user = await User.findById(decode.id);
+    const payload = jwt.verify(token, process.env.SECRET_KEY);
+    const user = await User.findById(payload.id);
+
     if (!user) {
-      return res.status(400).json({ message: "user not found" });
+      return res
+        .status(400)
+        .json({ success: false, message: "invalid verification link" });
     }
     const updatedUser = await User.findByIdAndUpdate(
-      decode.id,
+      user._id,
       {
         isActivated: true,
       },
       { new: true }
     );
 
-    res
-      .status(200)
-      .json({ message: "user activated successfully", updatedUser });
+    const userToken = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
+
+    res.status(200).json({
+      success: true,
+      message: "User verified",
+      user: { ...updatedUser._doc, token: userToken },
+    });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ error });
+    res.status(500).json({ success: false, message: "Internal server error" });
   }
+};
+
+/**
+ * @description send verification email
+ * @route /auth/send-verification-email
+ * @method POST
+ * @access public
+ */
+const sendVerificationEmailCtrl = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email: email });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "user not found" });
+    }
+    const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
+    const link = `http://localhost:5173/account/activate/${token}`;
+    await sendEmail(
+      user.email,
+      link,
+      user.name,
+      "verify your email",
+      "verifyemail"
+    );
+
+    res.status(200).json({ success: true, message: "email was sent" });
+  } catch (error) {}
 };
 
 module.exports = {
   signupCtrl,
   loginCtrl,
   verifyEmailCtrl,
+  sendVerificationEmailCtrl,
 };
