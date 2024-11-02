@@ -7,18 +7,32 @@ function Note() {
   const params = useParams();
 
   const [note, setNote] = useState({});
-  const { user } = useContext(UserContext);
+  const { user, setUser } = useContext(UserContext);
   useEffect(() => {
-    async function sendReq() {
-      const { data } = await axios.get(
-        `http://localhost:8000/notes/${params.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${user.token}`,
-          },
+    async function sendReq(retry = false, token = user.token) {
+      try {
+        const { data } = await axios.get(
+          `http://localhost:8000/notes/${params.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setNote(data.note);
+      } catch (error) {
+        if (error.response.status === 401 && !retry) {
+          const { data } = await axios.get(
+            "http://localhost:8000/auth/refresh-token",
+            {
+              withCredentials: true,
+            }
+          );
+          localStorage.setItem("user", JSON.stringify(data.user));
+          setUser(data.user);
+          sendReq(true, data.user.token);
         }
-      );
-      setNote(data.note);
+      }
     }
     sendReq();
   }, []);

@@ -9,13 +9,14 @@ const verifyToken = (req, res, next) => {
     const userVerified = jwt.verify(token, process.env.SECRET_KEY);
 
     if (!userVerified) {
-      return res.status(400).json({ message: "user not authenticated" });
+      return res.status(401).json({ message: "user not authenticated" });
     }
 
     req.userId = userVerified.id;
     next();
   } catch (error) {
     console.log(error);
+    return res.status(401).json({ message: "user not authorized" });
   }
 };
 

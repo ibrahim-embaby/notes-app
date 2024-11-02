@@ -2,7 +2,6 @@ const { User } = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/sendEmail");
-const { models } = require("mongoose");
 
 /**
  * @description signup user
@@ -68,12 +67,66 @@ const loginCtrl = async (req, res) => {
       return res.status(400).json({ message: "password not match" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
+    const accessToken = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
+      expiresIn: "10s",
+    });
 
-    res.status(200).json({ message: "success", user: { ...user._doc, token } });
+    const refreshToken = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
+      expiresIn: "30d",
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "success",
+      user: { ...user._doc, token: accessToken },
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error });
+  }
+};
+
+/**
+ * @description refresh access token
+ * @route /auth/refresh-token
+ * @method GET
+ * @access public
+ */
+const refreshTokenCtrl = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const payload = jwt.verify(refreshToken, process.env.SECRET_KEY);
+    if (!payload) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const accessToken = jwt.sign({ id: user._id }, process.env.SECRET_KEY, {
+      expiresIn: "10s",
+    });
+
+    res
+      .status(200)
+      .json({ success: true, user: { ...user._doc, token: accessToken } });
+  } catch (error) {
+    console.log(error);
   }
 };
 
@@ -149,4 +202,5 @@ module.exports = {
   loginCtrl,
   verifyEmailCtrl,
   sendVerificationEmailCtrl,
+  refreshTokenCtrl,
 };

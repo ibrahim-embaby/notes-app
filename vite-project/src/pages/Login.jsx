@@ -11,10 +11,16 @@ function Login() {
 
   const submitForm = async () => {
     try {
-      const { data } = await axios.post("http://localhost:8000/auth/login", {
-        email,
-        password,
-      });
+      const { data } = await axios.post(
+        "http://localhost:8000/auth/login",
+        {
+          email,
+          password,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
       if (data.message === "success") {
         localStorage.setItem("user", JSON.stringify(data.user));

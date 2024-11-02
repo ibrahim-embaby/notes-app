@@ -7,10 +7,10 @@ import { UserContext } from "../App";
 function AddNote() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const { user } = useContext(UserContext);
+  const { user, setUser } = useContext(UserContext);
   const navigate = useNavigate();
 
-  const submitForm = async () => {
+  const submitForm = async (retry = false, token = user.token) => {
     try {
       const { data } = await axios.post(
         "http://localhost:8000/notes",
@@ -20,7 +20,7 @@ function AddNote() {
         },
         {
           headers: {
-            Authorization: `Bearer ${user.token}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -37,7 +37,20 @@ function AddNote() {
         console.log(data);
       }
     } catch (error) {
-      toast.error(error.response.data.message);
+      if (error.response.status === 401) {
+        const { data } = await axios.get(
+          "http://localhost:8000/auth/refresh-token",
+          {
+            withCredentials: true,
+          }
+        );
+
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
+        submitForm((retry = true), data.user.token);
+      } else {
+        toast.error(error.response.data.message);
+      }
     }
   };
 

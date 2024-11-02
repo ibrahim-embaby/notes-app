@@ -18,6 +18,8 @@ export default function SignUp() {
     if (data.success === true) {
       toast.success(data.message);
       navigate("/login");
+    } else {
+      toast.error(data.message);
     }
   };
 

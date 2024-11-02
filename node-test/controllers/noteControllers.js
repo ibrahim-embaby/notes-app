@@ -32,6 +32,7 @@ module.exports.getAllNotes = async (req, res) => {
       path: "userId",
       select: "_id email name",
     });
+    console.log(notes);
 
     res.status(200).json({ notes });
   } catch (error) {
